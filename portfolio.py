@@ -1,18 +1,13 @@
 import pandas as pd
 import numpy as np
 
-exec(open("trading_algo.py").read())
-
-# import TradingAlgo
-
-
 class Portfolio:
     def __init__(self, target: str,
                 tickerset: set,
-                trading_algo: TradingAlgo,
-                investment: int = 1000,
-                rebalance : int = 0,
-                reconstitute : int = 1) -> None:
+                trading_algo: str,
+                investment: int = 100,
+                rebalance : int = 1,
+                reconstitute : int = 100) -> None:
         '''
             Initialise portfolio
         '''
@@ -20,16 +15,20 @@ class Portfolio:
         self.target = target
         self.ticker_set = tickerset
         self.tickers = []
-        self.trading_algo = trading_algo
+
+        print("Building Portfolios and Initialising Trading Algorithms")
+        trade_module = __import__("trading_algo")
+        algo = getattr(trade_module, trading_algo)
+        self.trading_algo = algo()
         
         self.start_nav = investment
         self.prevday_nav = investment
         self.current_nav = investment
-        self.dividents = pd.Series([], dtype= float)                      # ignore dividents for now
+        self.dividents = pd.Series([], dtype= float)
         
         self.weights = pd.Series([], dtype= float)                        # Equally balanced portfolio. Should Contain number of stocks owned. Ideally, Whole Numbers
         self.last_rebalancing_date = pd.to_datetime("01-01-1990")         # First rebalancing at 01st, Jan
-        self.rebalancing_interval = rebalance - 1                         # in month (plus 1, because that month included)
+        self.rebalancing_interval = rebalance                             # in month
         self.last_reconstitution_date = pd.to_datetime("01-01-1990")      # First reconstitution at 01st, Jan
         self.reconstitution_interval = reconstitute                       # in years
         pass
@@ -105,7 +104,7 @@ class Portfolio:
                     self.current_nav = self.weights.multiply(price["close"]).sum() + self.dividents.sum()
                     
                 
-                self.weights = self.trading_algo.run(price, self.current_nav)
+                self.weights = self.trading_algo.run(price, self.current_nav, date)
                 self.last_rebalancing_date = date
                 self.IsWeightInitialised = True
             else:
@@ -129,6 +128,7 @@ class Portfolio:
                 self.reconstitute(date= date, price= price, tickerlist= tickerlist)
             else: 
                 price = price[price.apply(lambda x: (x.name in self.tickers),axis = 1)]
+                
                 if price.shape[0] == 0:
                     return (-1,-1)
                 if self.isUpdateAllowed(date):
