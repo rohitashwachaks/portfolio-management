@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import gurobipy as gb
+import gurobi as gb
 import yfinance as yf
 
 class TradingAlgo():  
@@ -30,8 +30,7 @@ class DJIA_Algo(TradingAlgo):
         super().__init__("Price Cap Weighted")
         pass
 
-    def run(self, price: pd.DataFrame,
-                investment: float) -> pd.Series(dtype=float):
+    def run(self, price: pd.DataFrame, investment: float, date: pd.Timestamp,) -> pd.Series(dtype=float):
         total_price = sum(price["close"])
 
         weights = [investment/total_price]*len(price.index)
