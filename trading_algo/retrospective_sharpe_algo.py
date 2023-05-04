@@ -146,99 +146,99 @@ def drawdown(ret, title):
 
 # endregion Helper Functions & Initialising Scripts
 
-if __name__ == "__main__":
-    prt = __import__("portfolio")
-    Portfolio = getattr(prt, "Portfolio")
-
-    #region load data
-
-    # # region Online
-    # # Read Portfolios and trading Strategies
-    # ## Initialising
-    # start_date = pd.to_datetime("2015-01-01")
-    # end_date = pd.to_datetime("2022-12-31")
-    # # portfolio_tickers = ["SPY", "ACWX", "VCIT", "IGOV", "USO"]
-    # portfolio_tickers = ["SPY", "QCOM", "AAPL", "X", "MERC"]
-    #
-    # ## Yahoo API
-    # stocks = yf.Tickers(" ".join(portfolio_tickers))
-    #
-    # stock_data = stocks.download(" ".join(portfolio_tickers), start=start_date, end=end_date)[
-    #     ["Close", "Dividends"]]  # .dropna()
-    # stock_data.rename({"Close": "close", "Dividends": "div"}, axis=1, inplace=True)
-    #
-    # for tic in portfolio_tickers:
-    #     stock_data[("shares", tic)] = pd.Series([1] * len(stock_data.index), index=stock_data.index)
-    #
-    # # portfolio_tickers = stock_data["close"].columns
-    #
-    # stock_data.to_csv('../data/stock_data_close.csv')
-    # # endregion Online
-
-    stock_data = pd.read_csv('../data/stock_data_close.csv', index_col=0, header=[0, 1], parse_dates=True)
-    portfolio_tickers = stock_data['close'].columns
-    start_date, end_date = stock_data.index.sort_values()[[0, -1]].tolist()
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
-
-    ticker_dict = dict()
-    for year in range(start_date.year, end_date.year + 1):
-        ticker_dict[year] = portfolio_tickers
-
-    #endregion load data
-
-    #region BenchMark Portfolio
-    # Simulation
-
-    benchmark_weights = pd.Series([0.30, 0.25, 0.20, 0.15, 0.10], index=portfolio_tickers)
-
-    benchmark_portfolio = Portfolio(target="Baseline",
-                                    tickerset=ticker_dict, investment=100,
-                                    trading_algo="constant_weight_Algo",
-                                    rebalance=3, reconstitute=12)
-
-    benchmark_val = pd.Series([], dtype=float)
-    benchmark_returns = pd.Series([], dtype=float)
-
-    for date in stock_data.index:
-        tmpdf = stock_data.loc[date]
-        tmpdf = tmpdf.unstack().T
-        valuation, returns = benchmark_portfolio.run(date=date, price=tmpdf, tickerlist=portfolio_tickers)
-        if (valuation, returns) == (-1, -1):
-            print(benchmark_val)
-            print(benchmark_val.index[-1], date.date(), valuation, returns)
-            continue
-        benchmark_val[date] = valuation
-        benchmark_returns[date] = returns
-
-    benchmark_portfolio.echo()
-
-    #endregion BenchMark Portfolio
-
-    #region Retrospective Portifolio
-    # Simulation
-
-    retrospective_portfolio = Portfolio(target="Retrospective Portfolio",
-                                        tickerset=ticker_dict, investment=100,
-                                        trading_algo="retrospective_sharpe_Algo",
-                                        rebalance=3, reconstitute=12)
-
-    retrospective_portfolio.trading_algo.init_params(dataset=stock_data["close"], ticker_list=portfolio_tickers)
-
-    retrospective_val = pd.Series([], dtype=float)
-    retrospective_returns = pd.Series([], dtype=float)
-
-    for date in stock_data.index:
-        tmpdf = stock_data.loc[date]
-        tmpdf = tmpdf.unstack().T
-        valuation, returns = retrospective_portfolio.run(date=date, price=tmpdf, tickerlist=portfolio_tickers)
-        if (valuation, returns) == (-1, -1):
-            print(retrospective_val)
-            print(retrospective_val.index[-1], date.date(), valuation, returns)
-            continue
-        retrospective_val[date] = valuation
-        retrospective_returns[date] = returns
-
-    retrospective_portfolio.echo()
-
-    #endregion Retrospective Portifolio
+# if __name__ == "__main__":
+#     prt = __import__("portfolio")
+#     Portfolio = getattr(prt, "Portfolio")
+#
+#     #region load data
+#
+#     # # region Online
+#     # # Read Portfolios and trading Strategies
+#     # ## Initialising
+#     # start_date = pd.to_datetime("2015-01-01")
+#     # end_date = pd.to_datetime("2022-12-31")
+#     # # portfolio_tickers = ["SPY", "ACWX", "VCIT", "IGOV", "USO"]
+#     # portfolio_tickers = ["SPY", "QCOM", "AAPL", "X", "MERC"]
+#     #
+#     # ## Yahoo API
+#     # stocks = yf.Tickers(" ".join(portfolio_tickers))
+#     #
+#     # stock_data = stocks.download(" ".join(portfolio_tickers), start=start_date, end=end_date)[
+#     #     ["Close", "Dividends"]]  # .dropna()
+#     # stock_data.rename({"Close": "close", "Dividends": "div"}, axis=1, inplace=True)
+#     #
+#     # for tic in portfolio_tickers:
+#     #     stock_data[("shares", tic)] = pd.Series([1] * len(stock_data.index), index=stock_data.index)
+#     #
+#     # # portfolio_tickers = stock_data["close"].columns
+#     #
+#     # stock_data.to_csv('../data/stock_data_close.csv')
+#     # # endregion Online
+#
+#     stock_data = pd.read_csv('../data/stock_data_close.csv', index_col=0, header=[0, 1], parse_dates=True)
+#     portfolio_tickers = stock_data['close'].columns
+#     start_date, end_date = stock_data.index.sort_values()[[0, -1]].tolist()
+#     start_date = pd.to_datetime(start_date)
+#     end_date = pd.to_datetime(end_date)
+#
+#     ticker_dict = dict()
+#     for year in range(start_date.year, end_date.year + 1):
+#         ticker_dict[year] = portfolio_tickers
+#
+#     #endregion load data
+#
+#     #region BenchMark Portfolio
+#     # Simulation
+#
+#     benchmark_weights = pd.Series([0.30, 0.25, 0.20, 0.15, 0.10], index=portfolio_tickers)
+#
+#     benchmark_portfolio = Portfolio(target="Baseline",
+#                                     tickerset=ticker_dict, investment=100,
+#                                     trading_algo="constant_weight_Algo",
+#                                     rebalance=3, reconstitute=12)
+#
+#     benchmark_val = pd.Series([], dtype=float)
+#     benchmark_returns = pd.Series([], dtype=float)
+#
+#     for date in stock_data.index:
+#         tmpdf = stock_data.loc[date]
+#         tmpdf = tmpdf.unstack().T
+#         valuation, returns = benchmark_portfolio.run(date=date, price=tmpdf, tickerlist=portfolio_tickers)
+#         if (valuation, returns) == (-1, -1):
+#             print(benchmark_val)
+#             print(benchmark_val.index[-1], date.date(), valuation, returns)
+#             continue
+#         benchmark_val[date] = valuation
+#         benchmark_returns[date] = returns
+#
+#     benchmark_portfolio.echo()
+#
+#     #endregion BenchMark Portfolio
+#
+#     #region Retrospective Portifolio
+#     # Simulation
+#
+#     retrospective_portfolio = Portfolio(target="Retrospective Portfolio",
+#                                         tickerset=ticker_dict, investment=100,
+#                                         trading_algo="retrospective_sharpe_Algo",
+#                                         rebalance=3, reconstitute=12)
+#
+#     retrospective_portfolio.trading_algo.init_params(dataset=stock_data["close"], ticker_list=portfolio_tickers)
+#
+#     retrospective_val = pd.Series([], dtype=float)
+#     retrospective_returns = pd.Series([], dtype=float)
+#
+#     for date in stock_data.index:
+#         tmpdf = stock_data.loc[date]
+#         tmpdf = tmpdf.unstack().T
+#         valuation, returns = retrospective_portfolio.run(date=date, price=tmpdf, tickerlist=portfolio_tickers)
+#         if (valuation, returns) == (-1, -1):
+#             print(retrospective_val)
+#             print(retrospective_val.index[-1], date.date(), valuation, returns)
+#             continue
+#         retrospective_val[date] = valuation
+#         retrospective_returns[date] = returns
+#
+#     retrospective_portfolio.echo()
+#
+#     #endregion Retrospective Portifolio

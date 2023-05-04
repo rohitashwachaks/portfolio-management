@@ -67,14 +67,16 @@ class CAPM_Algo(TradingAlgo):
             # Defining Constraints
             A = np.zeros((constraints, variables))
             A[0] = 1  # Sum of weights = 1
-            A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)  # investment>0
+            A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (
+                -self.max_leverage)  # investment>0
             A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation  # Sum
 
             b = np.array([1.0] + [0.0] * (constraints - 1))
             sense = np.array(["E"] + ["G"] * variables + ["L"] * variables)
 
-            maxSharpe_model.linear_constraints.add(lin_expr=[cplex.SparsePair(ind =[f'stock{_}' for _ in range(variables)], val=t) for t in A],
-                                                   senses=sense, rhs=b)
+            maxSharpe_model.linear_constraints.add(
+                lin_expr=[cplex.SparsePair(ind=[f'stock{_}' for _ in range(variables)], val=t) for t in A],
+                senses=sense, rhs=b)
             maxSharpe_model.solve()
 
             # maxSharpe_model.write('maxSharpe_model.lp')
@@ -89,7 +91,6 @@ class CAPM_Algo(TradingAlgo):
         except Exception as e:
             print("Failed to find Optimal Weights")
         return
-
 
     def run(self, price: pd.DataFrame, investment: float, date: pd.Timestamp) -> pd.Series(dtype=float):
         if self.tics is None:
