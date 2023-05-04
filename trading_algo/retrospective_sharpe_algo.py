@@ -28,13 +28,14 @@ class retrospective_sharpe_Algo(TradingAlgo):
                     dataset=pd.DataFrame,
                     lever: float = 0.0,
                     max_cap: float = 0.45) -> None:
-        self.stock_data = dataset.pct_change()[1:]
+        dataset = dataset.pct_change()[1:]
+        self.stock_data = dataset
         self.tics = ticker_list
         self.max_leverage = lever
         self.max_allocation = max_cap
 
-        self.sigma = np.cov(self.stock_data.cov())
-        self.expected_returns = np.array(self.stock_data.mean())
+        self.sigma = np.cov(dataset.cov())
+        self.expected_returns = np.array(dataset.mean())
 
         self.maximise_sharpe()
         return
@@ -46,6 +47,12 @@ class retrospective_sharpe_Algo(TradingAlgo):
 
             # Defining Model's Decision Variables
             maxSharpe_model = cplex.Cplex()
+            maxSharpe_model.set_log_stream(None)
+            maxSharpe_model.set_error_stream(None)
+            maxSharpe_model.set_warning_stream(None)
+            maxSharpe_model.set_results_stream(None)
+            maxSharpe_model.parameters.optimalitytarget.set(3)
+
             y = maxSharpe_model.variables.add(obj=[0.0] * variables,
                                               lb=[0.0] * variables,
                                               ub=[1.0] * variables,
@@ -58,7 +65,6 @@ class retrospective_sharpe_Algo(TradingAlgo):
             for row_index, row in enumerate(risk):
                 for col_index, loading in enumerate(row):
                     if loading != 0:
-                        # quadratic_objective.append(f'{loading}*stock_{row_index}*stock_{col_index}')
                         quadratic_objective.append((row_index, col_index, loading))
             # quadratic_objective = ' + '.join(quadratic_objective)
             maxSharpe_model.objective.set_quadratic_coefficients(quadratic_objective)
@@ -66,7 +72,7 @@ class retrospective_sharpe_Algo(TradingAlgo):
 
             # Defining Constraints
             A = np.zeros((constraints, variables))
-            A[0] = self.expected_returns  # Sum of weights = 1
+            A[0] = 1  # self.expected_returns  # Sum of weights = 1
             A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)  # investment>0
             A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation  # Sum
 
@@ -81,7 +87,7 @@ class retrospective_sharpe_Algo(TradingAlgo):
 
             print("Obj Value:", maxSharpe_model.solution.get_objective_value())
             print("Values of Decision Variables:", maxSharpe_model.solution.get_values())
-            maxSharpe_model.solution.write('maxSharpe_model.txt')
+            # maxSharpe_model.solution.write('maxSharpe_model.txt')
 
             # Optimize Model
             # maxSharpe_model.Params.OutputFlag = 0
@@ -90,45 +96,11 @@ class retrospective_sharpe_Algo(TradingAlgo):
             print(e)
 
         try:
-            optimal_values = y.x
+            optimal_values = np.array(maxSharpe_model.solution.get_values())  # y.x
             self.weights = np.round(optimal_values / optimal_values.sum(), 2)
         except Exception as e:
             print("Failed to find Optimal Weights")
         return
-
-    # def maximise_sharpe_gb(self):
-    #     variables = len(self.tics)
-    #     constraints = 1 + (2 * variables)
-    #
-    #     # Defining Model's Decision Variables
-    #     maxSharpe_model = gb.Model()
-    #     y = maxSharpe_model.addMVar(variables)
-    #
-    #     # Defining Model's Objective Function (Minimize Risk)
-    #     risk = y @ self.sigma @ y
-    #     maxSharpe_model.setObjective(risk, sense=gb.GRB.MINIMIZE)
-    #
-    #     # Defining Constraints
-    #     A = np.zeros((constraints, variables))
-    #     A[0] = self.expected_returns  # Sum of weights = 1
-    #     A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)
-    #     A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation
-    #
-    #     b = np.array([1] + [0] * (constraints - 1))
-    #     sense = np.array(["="] + [">"] * variables + ["<"] * variables)
-    #
-    #     maxSharpe_model.addMConstrs(A, y, sense, b)
-    #
-    #     # Optimize Model
-    #     maxSharpe_model.Params.OutputFlag = 0
-    #     maxSharpe_model.optimize()
-    #
-    #     try:
-    #         optimal_values = y.x
-    #         self.weights = np.round(optimal_values / optimal_values.sum(), 2)
-    #     except Exception as e:
-    #         print("Failed to find Optimal Weights")
-    #     return
 
     def run(self, price: pd.DataFrame, investment: float, date: pd.Timestamp) -> pd.Series(dtype=float):
         wt = pd.Series(self.weights, index=price.index) * investment  # .apply(math.floor)
@@ -186,12 +158,13 @@ if __name__ == "__main__":
     prt = __import__("portfolio")
     Portfolio = getattr(prt, "Portfolio")
 
-    # region Online
+    # # region Online
     # # Read Portfolios and trading Strategies
     # ## Initialising
-    # start_date = pd.to_datetime("2010-01-01")
-    # end_date = pd.to_datetime("2020-12-31")
-    # portfolio_tickers = ["SPY", "ACWX", "VCIT", "IGOV", "USO"]
+    # start_date = pd.to_datetime("2015-01-01")
+    # end_date = pd.to_datetime("2022-12-31")
+    # # portfolio_tickers = ["SPY", "ACWX", "VCIT", "IGOV", "USO"]
+    # portfolio_tickers = ["SPY", "QCOM", "AAPL", "X", "MERC"]
     #
     # ## Yahoo API
     # stocks = yf.Tickers(" ".join(portfolio_tickers))
@@ -206,7 +179,7 @@ if __name__ == "__main__":
     # # portfolio_tickers = stock_data["close"].columns
     #
     # stock_data.to_csv('../data/stock_data_close.csv')
-    # endregion Online
+    # # endregion Online
 
     stock_data = pd.read_csv('../data/stock_data_close.csv', index_col=0, header=[0, 1], parse_dates=True)
     portfolio_tickers = stock_data['close'].columns
@@ -228,7 +201,6 @@ if __name__ == "__main__":
                                     trading_algo="Constant_weight_Algo",
                                     rebalance=3, reconstitute=12)
 
-    benchmark_portfolio.echo()
     benchmark_val = pd.Series([], dtype=float)
     benchmark_returns = pd.Series([], dtype=float)
 
@@ -243,13 +215,31 @@ if __name__ == "__main__":
         benchmark_val[date] = valuation
         benchmark_returns[date] = returns
 
+    benchmark_portfolio.echo()
+
+
     # Retrospective Portifolio
     # Simulation
 
     retrospective_portfolio = Portfolio(target="Retrospective Portfolio",
                                         tickerset=ticker_dict, investment=100,
-                                        trading_algo="retrospective_sharpe_Algo", rebalance=1)
+                                        trading_algo="retrospective_sharpe_Algo",
+                                        rebalance=3, reconstitute=12)
 
-    retrospective_portfolio.trading_algo.init_params(dataset=stock_data["close"], ticker_list=portfolio_tickers,
-                                                     lever=0.3)
+    retrospective_portfolio.trading_algo.init_params(dataset=stock_data["close"], ticker_list=portfolio_tickers)
+
+    retrospective_val = pd.Series([], dtype=float)
+    retrospective_returns = pd.Series([], dtype=float)
+
+    for date in stock_data.index:
+        tmpdf = stock_data.loc[date]
+        tmpdf = tmpdf.unstack().T
+        valuation, returns = retrospective_portfolio.run(date=date, price=tmpdf, tickerlist=portfolio_tickers)
+        if (valuation, returns) == (-1, -1):
+            print(retrospective_val)
+            print(retrospective_val.index[-1], date.date(), valuation, returns)
+            continue
+        retrospective_val[date] = valuation
+        retrospective_returns[date] = returns
+
     retrospective_portfolio.echo()

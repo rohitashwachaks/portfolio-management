@@ -2,26 +2,24 @@
 \Problem name: 
 
 Minimize
- obj1: [ 4.47776435830348e-9 stock0 ^2 - 6.8321325342325e-10 stock0 * stock1
-       + 1.60972954181226e-8 stock0 * stock2
-       + 3.33833866832079e-8 stock0 * stock3
-       - 1.02653921684304e-9 stock0 * stock4 + 7.87779309721586e-11 stock1 ^2
-       - 8.67581785487318e-10 stock1 * stock2
-       - 2.1834441809093e-9 stock1 * stock3
-       + 8.10663580367948e-12 stock1 * stock4 + 3.72230821584413e-9 stock2 ^2
-       + 2.87594438946524e-8 stock2 * stock3
-       - 9.31958348575969e-10 stock2 * stock4 + 4.51524177786955e-8 stock3 ^2
-       - 2.31982196004886e-9 stock3 * stock4 + 1.92606021994948e-11 stock4 ^2
+ obj1: [ 7.43620053425364e-9 stock0 ^2 - 6.08900955741343e-8 stock0 * stock1
+       + 1.62118353200839e-8 stock0 * stock2
+       + 4.29517829475243e-9 stock0 * stock3
+       - 3.31049764718194e-8 stock0 * stock4 + 7.5105629648483e-8 stock1 ^2
+       - 5.80882412812014e-8 stock1 * stock2
+       - 8.24909685173629e-9 stock1 * stock3
+       + 1.45859721047057e-7 stock1 * stock4 + 2.41443863362425e-8 stock2 ^2
+       + 8.27081104423603e-9 stock2 * stock3
+       - 5.28450549514071e-9 stock2 * stock4 + 8.88126917719613e-10 stock3 ^2
+       + 5.64509056616327e-8 stock3 * stock4 + 3.70806173205208e-7 stock4 ^2
        ] / 2
 Subject To
- c1:  0.00026248677831437 stock0 + 0.0000851721926592752 stock1
-      + 0.000567996143313569 stock2 - 0.000559848579769264 stock3
-      + 0.000239129622020248 stock4  = 1
- c2:  1.3 stock0 + 0.3 stock1 + 0.3 stock2 + 0.3 stock3 + 0.3 stock4 >= 0
- c3:  0.3 stock0 + 1.3 stock1 + 0.3 stock2 + 0.3 stock3 + 0.3 stock4 >= 0
- c4:  0.3 stock0 + 0.3 stock1 + 1.3 stock2 + 0.3 stock3 + 0.3 stock4 >= 0
- c5:  0.3 stock0 + 0.3 stock1 + 0.3 stock2 + 1.3 stock3 + 0.3 stock4 >= 0
- c6:  0.3 stock0 + 0.3 stock1 + 0.3 stock2 + 0.3 stock3 + 1.3 stock4 >= 0
+ c1:  stock0 + stock1 + stock2 + stock3 + stock4  = 1
+ c2:  stock0 >= 0
+ c3:  stock1 >= 0
+ c4:  stock2 >= 0
+ c5:  stock3 >= 0
+ c6:  stock4 >= 0
  c7:  0.55 stock0 - 0.45 stock1 - 0.45 stock2 - 0.45 stock3 - 0.45 stock4 <= 0
  c8:  - 0.45 stock0 + 0.55 stock1 - 0.45 stock2 - 0.45 stock3 - 0.45 stock4
       <= 0
