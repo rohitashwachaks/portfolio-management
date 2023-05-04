@@ -2,7 +2,7 @@ import pandas as pd
 from trading_algo.base import TradingAlgo
 
 
-class Constant_weight_Algo(TradingAlgo):
+class constant_weight_Algo(TradingAlgo):
     def __init__(self) -> None:
         super().__init__("Asset Class Weighted (Constant)")
         pass

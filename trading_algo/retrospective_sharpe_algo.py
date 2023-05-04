@@ -60,9 +60,8 @@ class retrospective_sharpe_Algo(TradingAlgo):
                                           names=[f'stock{_}' for _ in range(variables)])
 
             # Defining Model's Objective Function (Minimize Risk)
-            risk = np.tril((self.sigma + self.sigma.T) - (np.diag(self.sigma) * np.eye(self.sigma.shape[0])))
             quadratic_objective = []
-            for row_index, row in enumerate(risk):
+            for row_index, row in enumerate(self.sigma):
                 for col_index, loading in enumerate(row):
                     if loading != 0:
                         quadratic_objective.append((row_index, col_index, loading))
@@ -195,7 +194,7 @@ if __name__ == "__main__":
 
     benchmark_portfolio = Portfolio(target="Baseline",
                                     tickerset=ticker_dict, investment=100,
-                                    trading_algo="Constant_weight_Algo",
+                                    trading_algo="constant_weight_Algo",
                                     rebalance=3, reconstitute=12)
 
     benchmark_val = pd.Series([], dtype=float)
