@@ -1,7 +1,7 @@
+import cplex
 from trading_algo.base import TradingAlgo
 import pandas as pd
 import numpy as np
-import gurobipy as gb
 
 
 class CAPM_Algo(TradingAlgo):
@@ -36,40 +36,61 @@ class CAPM_Algo(TradingAlgo):
         self.expected_returns = np.array(data.mean())
         return
 
-    def maximise_sharpe(self) -> None:
-        variables = len(self.tics)
-        constraints = 1 + (2 * variables)
+    def maximise_sharpe(self):
+        try:
+            variables = len(self.tics)
+            constraints = 1 + (2 * variables)
 
-        # Defining Model's Decision Variables
-        maxSharpe_model = gb.Model()
-        y = maxSharpe_model.addMVar(variables)
+            # Defining Model's Decision Variables
+            maxSharpe_model = cplex.Cplex()
+            maxSharpe_model.set_log_stream(None)
+            maxSharpe_model.set_error_stream(None)
+            maxSharpe_model.set_warning_stream(None)
+            maxSharpe_model.set_results_stream(None)
+            maxSharpe_model.parameters.optimalitytarget.set(3)
 
-        # Defining Model's Objective Function (Minimize Risk)
-        risk = y @ self.sigma @ y
-        maxSharpe_model.setObjective(risk, sense=gb.GRB.MINIMIZE)
+            maxSharpe_model.variables.add(obj=[0.0] * variables,
+                                          lb=[0.0] * variables,
+                                          ub=[1.0] * variables,
+                                          types=[maxSharpe_model.variables.type.continuous] * variables,
+                                          names=[f'stock{_}' for _ in range(variables)])
 
-        # Defining Constraints
-        A = np.zeros((constraints, variables))
-        A[0] = self.expected_returns  # Sum of weights = 1
-        A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)
-        A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation
+            # Defining Model's Objective Function (Minimize Risk)
+            risk = np.tril((self.sigma + self.sigma.T) - (np.diag(self.sigma) * np.eye(self.sigma.shape[0])))
+            quadratic_objective = []
+            for row_index, row in enumerate(risk):
+                for col_index, loading in enumerate(row):
+                    if loading != 0:
+                        quadratic_objective.append((row_index, col_index, loading))
+            maxSharpe_model.objective.set_quadratic_coefficients(quadratic_objective)
+            maxSharpe_model.objective.set_sense(maxSharpe_model.objective.sense.minimize)
 
-        b = np.array([1] + [0] * (constraints - 1))
-        sense = np.array(["="] + [">"] * variables + ["<"] * variables)
+            # Defining Constraints
+            A = np.zeros((constraints, variables))
+            A[0] = 1  # Sum of weights = 1
+            A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)  # investment>0
+            A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation  # Sum
 
-        # print_equations([],A,sense,b)
-        maxSharpe_model.addMConstrs(A, y, sense, b)
+            b = np.array([1.0] + [0.0] * (constraints - 1))
+            sense = np.array(["E"] + ["G"] * variables + ["L"] * variables)
 
-        # Optimize Model
-        maxSharpe_model.Params.OutputFlag = 0
-        maxSharpe_model.optimize()
+            maxSharpe_model.linear_constraints.add(lin_expr=[cplex.SparsePair(ind =[f'stock{_}' for _ in range(variables)], val=t) for t in A],
+                                                   senses=sense, rhs=b)
+            maxSharpe_model.solve()
+
+            # maxSharpe_model.write('maxSharpe_model.lp')
+            # print("Obj Value:", maxSharpe_model.solution.get_objective_value())
+            # print("Values of Decision Variables:", maxSharpe_model.solution.get_values())
+        except Exception as e:
+            print(e)
 
         try:
-            optimal_values = y.x
+            optimal_values = np.array(maxSharpe_model.solution.get_values())
             self.weights = np.round(optimal_values / optimal_values.sum(), 2)
         except Exception as e:
             print("Failed to find Optimal Weights")
         return
+
 
     def run(self, price: pd.DataFrame, investment: float, date: pd.Timestamp) -> pd.Series(dtype=float):
         if self.tics is None:
