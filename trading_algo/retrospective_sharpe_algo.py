@@ -40,52 +40,54 @@ class retrospective_sharpe_Algo(TradingAlgo):
         return
 
     def maximise_sharpe(self):
-        variables = len(self.tics)
-        constraints = 1 + (2 * variables)
+        try:
+            variables = len(self.tics)
+            constraints = 1 + (2 * variables)
 
-        # Defining Model's Decision Variables
-        maxSharpe_model = cplex.Cplex()
-        y = maxSharpe_model.variables.add(obj=[0.0] * variables,
-                                          lb=[0.0] * variables,
-                                          ub=[1.0] * variables,
-                                          types=['C'] * variables,
-                                          names=[f'stock{_}' for _ in range(variables)])
+            # Defining Model's Decision Variables
+            maxSharpe_model = cplex.Cplex()
+            y = maxSharpe_model.variables.add(obj=[0.0] * variables,
+                                              lb=[0.0] * variables,
+                                              ub=[1.0] * variables,
+                                              types=[maxSharpe_model.variables.type.continuous] * variables,
+                                              names=[f'stock{_}' for _ in range(variables)])
 
-        # y = [maxSharpe_model.variables.add(obj=0.0, lb=0.0, ub=1.0, types=maxSharpe_model.variables.type.continuous) for i in range(variables)]
+            # Defining Model's Objective Function (Minimize Risk)
+            risk = np.tril((self.sigma + self.sigma.T) - (np.diag(self.sigma) * np.eye(self.sigma.shape[0])))
+            quadratic_objective = []
+            for row_index, row in enumerate(risk):
+                for col_index, loading in enumerate(row):
+                    if loading != 0:
+                        # quadratic_objective.append(f'{loading}*stock_{row_index}*stock_{col_index}')
+                        quadratic_objective.append((row_index, col_index, loading))
+            # quadratic_objective = ' + '.join(quadratic_objective)
+            maxSharpe_model.objective.set_quadratic_coefficients(quadratic_objective)
+            maxSharpe_model.objective.set_sense(maxSharpe_model.objective.sense.minimize)
 
-        # Defining Model's Objective Function (Minimize Risk)
-        risk = np.tril((self.sigma + self.sigma.T)-(np.diag(self.sigma)*np.eye(self.sigma.shape[0])))
-        quadratic_objective = []
-        for row_index, row in enumerate(risk):
-            for col_index, loading in enumerate(row):
-                if loading != 0:
-                    quadratic_objective.append(f'{loading}*stock_{row_index}*stock_{col_index}')
-        quadratic_objective = ' + '.join(quadratic_objective)
-        maxSharpe_model.objective.set_quadratic(quadratic_objective)
-        maxSharpe_model.objective.set_sense(maxSharpe_model.objective.sense.minimize)
+            # Defining Constraints
+            A = np.zeros((constraints, variables))
+            A[0] = self.expected_returns  # Sum of weights = 1
+            A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)  # investment>0
+            A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation  # Sum
 
-        # Defining Constraints
-        A = np.zeros((constraints, variables))
-        A[0] = self.expected_returns  # Sum of weights = 1
-        A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)  # investment>0
-        A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation  # Sum
+            b = np.array([1.0] + [0.0] * (constraints - 1))
+            sense = np.array(["E"] + ["G"] * variables + ["L"] * variables)
 
-        b = np.array([1] + [0] * (constraints - 1))
-        sense = np.array(["="] + [">"] * variables + ["<"] * variables)
+            maxSharpe_model.linear_constraints.add(lin_expr=[cplex.SparsePair(ind =[f'stock{_}' for _ in range(variables)], val=t) for t in A],
+                                                   senses=sense,
+                                                   rhs=b)
+            maxSharpe_model.write('maxSharpe_model.lp')
+            maxSharpe_model.solve()
 
-        maxSharpe_model.linear_constraints.add(lin_expr=A,
-                                               senses=sense,
-                                               rhs=b)
-        maxSharpe_model.write('maxSharpe_model.lp')
-        maxSharpe_model.solve()
+            print("Obj Value:", maxSharpe_model.solution.get_objective_value())
+            print("Values of Decision Variables:", maxSharpe_model.solution.get_values())
+            maxSharpe_model.solution.write('maxSharpe_model.txt')
 
-        print("Obj Value:", maxSharpe_model.solution.get_objective_value())
-        print("Values of Decision Variables:", maxSharpe_model.solution.get_values())
-        maxSharpe_model.solution.write('maxSharpe_model.txt')
-
-        # Optimize Model
-        maxSharpe_model.Params.OutputFlag = 0
-        maxSharpe_model.optimize()
+            # Optimize Model
+            # maxSharpe_model.Params.OutputFlag = 0
+            # maxSharpe_model.optimize()
+        except Exception as e:
+            print(e)
 
         try:
             optimal_values = y.x
@@ -94,39 +96,39 @@ class retrospective_sharpe_Algo(TradingAlgo):
             print("Failed to find Optimal Weights")
         return
 
-    def maximise_sharpe_gb(self):
-        variables = len(self.tics)
-        constraints = 1 + (2 * variables)
-
-        # Defining Model's Decision Variables
-        maxSharpe_model = gb.Model()
-        y = maxSharpe_model.addMVar(variables)
-
-        # Defining Model's Objective Function (Minimize Risk)
-        risk = y @ self.sigma @ y
-        maxSharpe_model.setObjective(risk, sense=gb.GRB.MINIMIZE)
-
-        # Defining Constraints
-        A = np.zeros((constraints, variables))
-        A[0] = self.expected_returns  # Sum of weights = 1
-        A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)
-        A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation
-
-        b = np.array([1] + [0] * (constraints - 1))
-        sense = np.array(["="] + [">"] * variables + ["<"] * variables)
-
-        maxSharpe_model.addMConstrs(A, y, sense, b)
-
-        # Optimize Model
-        maxSharpe_model.Params.OutputFlag = 0
-        maxSharpe_model.optimize()
-
-        try:
-            optimal_values = y.x
-            self.weights = np.round(optimal_values / optimal_values.sum(), 2)
-        except Exception as e:
-            print("Failed to find Optimal Weights")
-        return
+    # def maximise_sharpe_gb(self):
+    #     variables = len(self.tics)
+    #     constraints = 1 + (2 * variables)
+    #
+    #     # Defining Model's Decision Variables
+    #     maxSharpe_model = gb.Model()
+    #     y = maxSharpe_model.addMVar(variables)
+    #
+    #     # Defining Model's Objective Function (Minimize Risk)
+    #     risk = y @ self.sigma @ y
+    #     maxSharpe_model.setObjective(risk, sense=gb.GRB.MINIMIZE)
+    #
+    #     # Defining Constraints
+    #     A = np.zeros((constraints, variables))
+    #     A[0] = self.expected_returns  # Sum of weights = 1
+    #     A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)
+    #     A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation
+    #
+    #     b = np.array([1] + [0] * (constraints - 1))
+    #     sense = np.array(["="] + [">"] * variables + ["<"] * variables)
+    #
+    #     maxSharpe_model.addMConstrs(A, y, sense, b)
+    #
+    #     # Optimize Model
+    #     maxSharpe_model.Params.OutputFlag = 0
+    #     maxSharpe_model.optimize()
+    #
+    #     try:
+    #         optimal_values = y.x
+    #         self.weights = np.round(optimal_values / optimal_values.sum(), 2)
+    #     except Exception as e:
+    #         print("Failed to find Optimal Weights")
+    #     return
 
     def run(self, price: pd.DataFrame, investment: float, date: pd.Timestamp) -> pd.Series(dtype=float):
         wt = pd.Series(self.weights, index=price.index) * investment  # .apply(math.floor)
@@ -135,10 +137,11 @@ class retrospective_sharpe_Algo(TradingAlgo):
 
 
 # --------------------------------------------------------
+
 warnings.filterwarnings("ignore")
 
 
-# Helper Functions & Initialising Scripts
+# region Helper Functions & Initialising Scripts
 
 def tracking_error(benchmark: pd.Series, portfolio: pd.Series) -> float:
     """
@@ -177,6 +180,8 @@ def drawdown(ret, title):
     return np.round(abs(drawdowns.min() * 100), 2)
 
 
+# endregion Helper Functions & Initialising Scripts
+
 if __name__ == "__main__":
     prt = __import__("portfolio")
     Portfolio = getattr(prt, "Portfolio")
@@ -214,15 +219,14 @@ if __name__ == "__main__":
         ticker_dict[year] = portfolio_tickers
 
     # BenchMark Portfolio
-    ## Simulation
-    from trading_algo import *
+    # Simulation
 
     benchmark_weights = pd.Series([0.30, 0.25, 0.20, 0.15, 0.10], index=portfolio_tickers)
 
     benchmark_portfolio = Portfolio(target="Baseline",
                                     tickerset=ticker_dict, investment=100,
                                     trading_algo="Constant_weight_Algo",
-                                    rebalance=3, reconstitute=99)
+                                    rebalance=3, reconstitute=12)
 
     benchmark_portfolio.echo()
     benchmark_val = pd.Series([], dtype=float)
@@ -240,7 +244,8 @@ if __name__ == "__main__":
         benchmark_returns[date] = returns
 
     # Retrospective Portifolio
-    ## Simulation
+    # Simulation
+
     retrospective_portfolio = Portfolio(target="Retrospective Portfolio",
                                         tickerset=ticker_dict, investment=100,
                                         trading_algo="retrospective_sharpe_Algo", rebalance=1)
