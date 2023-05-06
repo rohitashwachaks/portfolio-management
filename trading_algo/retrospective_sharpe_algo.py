@@ -1,13 +1,7 @@
-import json
-
-import pandas as pd
 from trading_algo.base import TradingAlgo
-import numpy as np
-import gurobipy as gb
 import cplex
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import warnings
 from scipy.stats.mstats import gmean
 
@@ -22,6 +16,7 @@ class retrospective_sharpe_Algo(TradingAlgo):
         self.tics = None
         self.stock_data = None
         self.weights = None
+        self.rf = 0.0
         return
 
     def init_params(self, ticker_list: list,
@@ -55,7 +50,7 @@ class retrospective_sharpe_Algo(TradingAlgo):
 
             maxSharpe_model.variables.add(obj=[0.0] * variables,
                                           lb=[0.0] * variables,
-                                          ub=[1.0] * variables,
+                                          # ub=[1.0] * variables,
                                           types=[maxSharpe_model.variables.type.continuous] * variables,
                                           names=[f'stock{_}' for _ in range(variables)])
 
@@ -70,8 +65,8 @@ class retrospective_sharpe_Algo(TradingAlgo):
 
             # Defining Constraints
             A = np.zeros((constraints, variables))
-            A[0] = 1  # Sum of weights = 1
-            A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (-self.max_leverage)  # investment>0
+            A[0] = (self.expected_returns - self.rf)  # Sum of weights = 1
+            A[1:variables + 1] = np.eye(variables) - (np.ones((variables, variables)) * (-self.max_leverage))  # investment>0
             A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation  # Sum
 
             b = np.array([1.0] + [0.0] * (constraints - 1))
@@ -143,9 +138,9 @@ def drawdown(ret, title):
     }).plot(figsize=(15, 10), title="Drawdown of " + title)
     return np.round(abs(drawdowns.min() * 100), 2)
 
-
 # endregion Helper Functions & Initialising Scripts
 
+#
 # if __name__ == "__main__":
 #     prt = __import__("portfolio")
 #     Portfolio = getattr(prt, "Portfolio")
@@ -187,33 +182,33 @@ def drawdown(ret, title):
 #
 #     #endregion load data
 #
-#     #region BenchMark Portfolio
-#     # Simulation
-#
-#     benchmark_weights = pd.Series([0.30, 0.25, 0.20, 0.15, 0.10], index=portfolio_tickers)
-#
-#     benchmark_portfolio = Portfolio(target="Baseline",
-#                                     tickerset=ticker_dict, investment=100,
-#                                     trading_algo="constant_weight_Algo",
-#                                     rebalance=3, reconstitute=12)
-#
-#     benchmark_val = pd.Series([], dtype=float)
-#     benchmark_returns = pd.Series([], dtype=float)
-#
-#     for date in stock_data.index:
-#         tmpdf = stock_data.loc[date]
-#         tmpdf = tmpdf.unstack().T
-#         valuation, returns = benchmark_portfolio.run(date=date, price=tmpdf, tickerlist=portfolio_tickers)
-#         if (valuation, returns) == (-1, -1):
-#             print(benchmark_val)
-#             print(benchmark_val.index[-1], date.date(), valuation, returns)
-#             continue
-#         benchmark_val[date] = valuation
-#         benchmark_returns[date] = returns
-#
-#     benchmark_portfolio.echo()
-#
-#     #endregion BenchMark Portfolio
+#     # #region BenchMark Portfolio
+#     # # Simulation
+#     #
+#     # benchmark_weights = pd.Series([0.30, 0.25, 0.20, 0.15, 0.10], index=portfolio_tickers)
+#     #
+#     # benchmark_portfolio = Portfolio(target="Baseline",
+#     #                                 tickerset=ticker_dict, investment=100,
+#     #                                 trading_algo="constant_weight_Algo",
+#     #                                 rebalance=3, reconstitute=12)
+#     #
+#     # benchmark_val = pd.Series([], dtype=float)
+#     # benchmark_returns = pd.Series([], dtype=float)
+#     #
+#     # for date in stock_data.index:
+#     #     tmpdf = stock_data.loc[date]
+#     #     tmpdf = tmpdf.unstack().T
+#     #     valuation, returns = benchmark_portfolio.run(date=date, price=tmpdf, tickerlist=portfolio_tickers)
+#     #     if (valuation, returns) == (-1, -1):
+#     #         print(benchmark_val)
+#     #         print(benchmark_val.index[-1], date.date(), valuation, returns)
+#     #         continue
+#     #     benchmark_val[date] = valuation
+#     #     benchmark_returns[date] = returns
+#     #
+#     # benchmark_portfolio.echo()
+#     #
+#     # #endregion BenchMark Portfolio
 #
 #     #region Retrospective Portifolio
 #     # Simulation

@@ -15,6 +15,8 @@ class CAPM_Algo(TradingAlgo):
         self.max_leverage = None
         self.stock_data = None
         self.tics = None
+        self.rf = 0.0
+        return
 
     def init_params(self,
                     dataset: pd.DataFrame,
@@ -66,9 +68,9 @@ class CAPM_Algo(TradingAlgo):
 
             # Defining Constraints
             A = np.zeros((constraints, variables))
-            A[0] = 1  # Sum of weights = 1
-            A[1:variables + 1] = np.eye(variables) - np.ones((variables, variables)) * (
-                -self.max_leverage)  # investment>0
+            A[0] = (self.expected_returns - self.rf)  # Sum of weights = 1
+            A[1:variables + 1] = np.eye(variables) - (np.ones((variables, variables)) * (
+                -self.max_leverage))  # investment>0
             A[-variables:] = np.eye(variables) - np.ones((variables, variables)) * self.max_allocation  # Sum
 
             b = np.array([1.0] + [0.0] * (constraints - 1))
