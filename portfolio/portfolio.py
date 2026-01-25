@@ -216,6 +216,7 @@ class Portfolio(PortfolioBaseClass):
 
     @property
     def weights(self):
+        return self._weights
 
 
     # endregion Properties
@@ -384,4 +385,4 @@ if __name__ == '__main__':
                               'TSLA': tsla
                           },
                           nav=1000)
-    p
+    # portfolio
